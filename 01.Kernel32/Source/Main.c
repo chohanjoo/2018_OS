@@ -1,10 +1,35 @@
 #include "Types.h"
 
 void kPrintString(int iX, int iY, const char* pcString);
+BOOL kInitializeKernel64Area(void);
+BOOL kIsMemoryEnough(void);
 
 void main(void)
 {
-	kPrintString(0,4,"C Language Kernel Started~!!!");
+	DWORD i;
+	kPrintString(0,4,"C Language Kernel Start............[Pass]");
+
+	kPrintString(0,5,"Minimum Memory Size Check............[    ]");
+	if(kIsMemoryEnough()==FALSE)
+	{
+		kPrintString(38,5,"Fail");
+		kPrintString(0,6,"Not Enough Memory~!! MINT64 OS Requires Over 64Mbyte Memory~!!");
+		while(1);
+	}
+	else
+	{
+		kPrintString(38,5,"Pass");
+	}
+
+
+	kPrintString(0,6,"IA-32e Kernel Area Initialize............[    ]");
+	if(kInitializeKernel64Area()==FALSE)
+	{
+		kPrintString(42,6,"Fail");
+		kPrintString(0,7,"Kernel Area Initializtion Fail~!!");
+		while(1);
+	}
+	kPrintString(42,6,"Pass");
 
 	while(1);
 }
@@ -19,4 +44,45 @@ void kPrintString(int iX, int iY, const char* pcString)
 	{
 		pstScreen[i].bCharactor = pcString[i];
 	}
+}
+
+BOOL kInitializeKernel64Area(void)
+{
+
+	DWORD *pdwCurrentAddress;
+
+	pdwCurrentAddress = (DWORD*) 0x100000;
+
+	while((DWORD)pdwCurrentAddress < 0x600000)
+	{
+		*pdwCurrentAddress = 0x00;
+
+		if(*pdwCurrentAddress !=0)
+		{
+			return FALSE;
+		}
+
+		pdwCurrentAddress++;
+	}
+	return TRUE;
+}
+
+BOOL kIsMemoryEnough(void)
+{
+	DWORD* pdwCurrentAddress;
+
+	pdwCurrentAddress = (DWORD*) 0x100000;
+
+	while((DWORD)pdwCurrentAddress < 0x400000)
+	{
+		*pdwCurrentAddress = 0x12345678;
+
+		if(*pdwCurrentAddress !=0x12345678)
+		{
+			return FALSE;
+		}
+
+		pdwCurrentAddress+=(0x100000 / 4);
+	}
+	return TRUE;
 }
