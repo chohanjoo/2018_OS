@@ -1,4 +1,5 @@
 #include "Types.h"
+#include "Page.h"
 
 void kPrintString(int iX, int iY, const char* pcString);
 BOOL kInitializeKernel64Area(void);
@@ -30,6 +31,10 @@ void main(void)
 		while(1);
 	}
 	kPrintString(42,6,"Pass");
+
+	kPrintString(0,7,"IA-32e Page Tables Initialize............[    ]");
+	kInitializePageTables();
+	kPrintString(42,7,"Pass");
 
 	while(1);
 }
