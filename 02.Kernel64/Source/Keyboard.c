@@ -131,7 +131,7 @@ BOOL kChangeKeyboardLED(BOOL bCapsLockOn, BOOL bNumLockOn, BOOL bScrollLockOn)
 			break;
 		}
 	}
-	if(j<=100)
+	if(j>=100)
 	{
 		return FALSE;
 	}
@@ -388,15 +388,21 @@ void UpdateCombinationKeyStatusAndLED(BYTE bScanCode)
 
 	else if((bDownScanCode == 58) && (bDown == TRUE))
 	{
-		gs_stKeyboardManager.bCapsLockOn = TRUE;
+		gs_stKeyboardManager.bCapsLockOn ^= TRUE;
 		bLEDStatusChanged = TRUE;
 	}
 
 	else if((bDownScanCode == 69) && (bDown == TRUE))
 	{
-		gs_stKeyboardManager.bNumLockOn = TRUE;
+		gs_stKeyboardManager.bNumLockOn ^= TRUE;
 		bLEDStatusChanged = TRUE;
 	}
+
+	else if((bDownScanCode == 70) && (bDown == TRUE))
+	{
+		gs_stKeyboardManager.bScrollLockOn ^= TRUE;
+		bLEDStatusChanged = TRUE;
+	}  
 
 	if(bLEDStatusChanged == TRUE)
 	{

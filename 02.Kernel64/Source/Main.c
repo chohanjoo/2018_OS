@@ -29,6 +29,15 @@ void Main( void )
 		while(1);
 	}
 
+    kPrintString( 0, 14, "This message is printed through the video memory relocated to 0xAB8000" );
+
+    kPrintString( 0, 15, "Test the Read-only Page Funtion: Read.......[    ]" );
+    if(ReadTest())
+        kPrintString( 45, 15, "Pass");
+    
+    kPrintString( 0, 16, "Test the Read-only Page Funtion: Write......[    ]" );
+    if(WriteTest())
+        kPrintString( 45, 16, "Pass");
 	while(1)
 	{
 		// 출력 버퍼(포트 0x60)가 차 있으면 스캔 코드를 읽을 수 있음
@@ -43,21 +52,12 @@ void Main( void )
 				// 키가 눌러졌으면 키의 ASCII 코드 값을 화면에 출력
 				if(bFlags & KEY_FLAGS_DOWN)
 				{
-					kPrintString(i++,13,vcTemp);
+					kPrintString(i++,17,vcTemp);
 				}
 			}
 		}
 	}
 
-    kPrintString( 0, 14, "This message is printed through the video memory relocated to 0xAB8000" );
-
-    kPrintString( 0, 15, "Test the Read-only Page Funtion: Read.......[    ]" );
-    if(ReadTest())
-        kPrintString( 45, 15, "Pass");
-    
-    kPrintString( 0, 16, "Test the Read-only Page Funtion: Write......[    ]" );
-    if(WriteTest())
-        kPrintString( 45, 16, "Pass");
     
 }
 
