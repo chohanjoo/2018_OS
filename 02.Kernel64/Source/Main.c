@@ -1,6 +1,7 @@
 #include "Types.h"
 #include "Keyboard.h"
 #include "Descriptor.h"
+#include "PIC.h"
 
 // 함수 선언
 void kPrintString( int iX, int iY, const char* pcString );
@@ -33,6 +34,8 @@ void Main( void )
     kPrintString( 45, 15, "Pass" );
 	kPrintString(0,15,"Keyboard Activate...........................[    ]");
 
+
+
 	// 키보드를 활성화
 	if( kActivateKeyboard() == TRUE )
 	{
@@ -54,6 +57,13 @@ void Main( void )
     if(WriteTest())
         kPrintString( 45, 18, "Pass");
 
+	kPrintString(0,19,"PIC Controller And Interrupt Initialize.....[    ]");
+	// PIC 컨트롤러 초기화 및 모든 인터럽트 활성화
+	kInitializePIC();
+	kMaskPICInterrupt(0);
+	kEnableInterrupt();
+	kPrintString(45,19,"Pass");
+
 	while(1)
 	{
 		// 출력 버퍼(포트 0x60)가 차 있으면 스캔 코드를 읽을 수 있음
@@ -68,7 +78,7 @@ void Main( void )
 				// 키가 눌러졌으면 키의 ASCII 코드 값을 화면에 출력
 				if(bFlags & KEY_FLAGS_DOWN)
 				{
-					kPrintString(i++,19,vcTemp);
+					kPrintString(i++,20,vcTemp);
 					//0이 입력되면 변수를 0으로 나누어 Divide Error 예외(벡터 0번)를 발생시킴
 					if(vcTemp[0] == '0')
 					{
