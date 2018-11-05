@@ -50,13 +50,13 @@ void Main( void )
 
 	kPrintString( 0, 17, "This message is printed through the video memory relocated to 0xAB8000" );
 
-	kPrintString( 0, 18, "Test the Read-only Page Funtion: Read.......[    ]" );
-	if(ReadTest())
-		kPrintString( 45, 18, "Pass");
+//	kPrintString( 0, 18, "Test the Read-only Page Funtion: Read.......[    ]" );
+//	if(ReadTest())
+//		kPrintString( 45, 18, "Pass");
 
-	kPrintString( 0, 19, "Test the Read-only Page Funtion: Write......[    ]" );
-	if(WriteTest())
-		kPrintString( 45, 19, "Pass");
+//	kPrintString( 0, 19, "Test the Read-only Page Funtion: Write......[    ]" );
+//	if(WriteTest())
+//		kPrintString( 45, 19, "Pass");
 
 	kPrintString(0,20,"PIC Controller And Interrupt Initialize.....[    ]");
 	// PIC 컨트롤러 초기화 및 모든 인터럽트 활성화
@@ -81,7 +81,9 @@ void Main( void )
 				{
 					//아래 코드를 수행하면 Divide Error 예외가 발생하여
 					//커널의 임시 핸들러가 수행됨
-					bTemp = bTemp / 0;
+					//bTemp = bTemp / 0;
+					long *ptr = 0x1ff000;
+					*ptr = 0;
 				}
 			}
 		}

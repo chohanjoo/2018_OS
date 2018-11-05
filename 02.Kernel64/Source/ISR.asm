@@ -9,7 +9,7 @@
 SECTION .text       ; text 섹션(세그먼트)을 정의
 
 ; 외부에서 정의된 함수를 쓸 수 있도록 선언함(Import)
-extern kCommonExceptionHandler, kCommonInterruptHandler, kKeyboardHandler
+extern kCommonExceptionHandler, kDistinguishException, kPageFaultExceptionHandler, kProtectrionFaultExceptionHandler, kCommonInterruptHandler, kKeyboardHandler
 
 ; C 언어에서 호출할 수 있도록 이름을 노출함(Export)
 ; 예외(Exception) 처리를 위한 ISR
@@ -261,9 +261,9 @@ kISRPageFault:
     KSAVECONTEXT    ; 콘텍스트를 저장한 뒤 셀렉터를 커널 데이터 디스크립터로 교체
 
     ; 핸들러에 예외 번호와 에러 코드를 삽입하고 핸들러 호출
-    mov rdi, 14
+    mov rdi, cr2
     mov rsi, qword [ rbp + 8 ]
-    call kCommonExceptionHandler
+    call kDistinguishException
 
     KLOADCONTEXT    ; 콘텍스트를 복원
     add rsp, 8      ; 에러 코드를 스택에서 제거

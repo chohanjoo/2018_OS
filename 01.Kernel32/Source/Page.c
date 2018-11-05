@@ -75,15 +75,15 @@ void kInitializePageTables( void )
     dwMappingAddress = 0;
     for( i = 0 ; i < PAGE_MAXENTRYCOUNT ; i++ )
     {
-        /*
+        
         if( dwMappingAddress == 0x1FF000 )
         {
             kSetPageEntryData( &( pstPTEntry[ i ] ), 0,
-                dwMappingAddress, PAGE_FLAGS_P , 0 );
+                dwMappingAddress, 0x00000001, 0 );
             dwMappingAddress += 0x1000;
             continue;
         }
-        */
+        
         kSetPageEntryData( &( pstPTEntry[ i ] ), 0,
                 dwMappingAddress, PAGE_FLAGS_DEFAULT, 0 );
         dwMappingAddress += 0x1000;

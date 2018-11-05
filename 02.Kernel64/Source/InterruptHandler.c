@@ -9,7 +9,7 @@
 #include "InterruptHandler.h"
 #include "PIC.h"
 #include "Keyboard.h"
-
+#include "Page.h"
 /**
  *  공통으로 사용하는 예외 핸들러
  */
@@ -30,6 +30,85 @@ void kCommonExceptionHandler( int iVectorNumber, QWORD qwErrorCode )
     while( 1 ) ;
 }
 
+void kSetPageEntryData( PTENTRY* pstEntry, DWORD dwUpperBaseAddress, 
+        DWORD dwLowerBaseAddress, DWORD dwLowerFlags, DWORD dwUpperFlags )
+{
+    pstEntry->dwAttributeAndLowerBaseAddress = dwLowerBaseAddress | dwLowerFlags;
+    pstEntry->dwUpperBaseAddressAndEXB = ( dwUpperBaseAddress & 0xFF ) |
+        dwUpperFlags;
+}
+
+void kDistinguishException(int iVectorNumber, QWORD qwErrorCode)
+{
+	int page_mask = 0x00000001;
+	int protection_mask = 0x00000002;
+	
+	if((qwErrorCode & page_mask) == 0 )
+	{
+		kPageFaultExceptionHandler(iVectorNumber,qwErrorCode);
+	}
+	else if((qwErrorCode & protection_mask) == 2)
+	{
+		kProtectionFaultExceptionHandler(iVectorNumber,qwErrorCode);
+	}
+
+}
+void kPageFaultExceptionHandler( int iVectorNumber, QWORD qwErrorCode )
+{
+    char vcBuffer[ 7 ] = { 0, };
+	int number = 0;
+	int mask = 0x00F00000;
+	PTENTRY* pstPTEntry;
+	
+
+	for(int i=0;i<6;i++){
+		if((number = ((iVectorNumber & mask)>>(20-i*4)))<=9)
+			vcBuffer[ i ] = '0' + number;
+		else
+			vcBuffer[ i ] = 87 + number;
+		mask >>= 4;
+	}
+
+	
+    kPrintString( 0, 0, "====================================================" );
+    kPrintString( 0, 1, "                 Page Fault Occur~!!!!               " );
+    kPrintString( 0, 2, "                    Address:                         " );
+	kPrintString( 28, 2, "0x" );
+    kPrintString( 30, 2, vcBuffer );
+    kPrintString( 0, 3, "====================================================" );
+
+	pstPTEntry = (PTENTRY*)0x142000;
+	kSetPageEntryData(&(pstPTEntry[511]),0,0x1FF000,0x00000003,0);
+	invlpg(&iVectorNumber);
+}
+void kProtectionFaultExceptionHandler( int iVectorNumber, QWORD qwErrorCode )
+{
+    char vcBuffer[ 7 ] = { 0, };
+	int number = 0;
+	int mask = 0x00F00000;
+	PTENTRY* pstPTEntry;
+	
+
+	for(int i=0;i<6;i++){
+		if((number = ((iVectorNumber & mask)>>(20-i*4)))<=9)
+			vcBuffer[ i ] = '0' + number;
+		else
+			vcBuffer[ i ] = 87 + number;
+		mask >>= 4;
+	}
+
+	
+    kPrintString( 0, 0, "====================================================" );
+    kPrintString( 0, 1, "                 Protection Fault Occur~!!!!               " );
+    kPrintString( 0, 2, "                    Address:                         " );
+	kPrintString( 28, 2, "0x" );
+    kPrintString( 30, 2, vcBuffer );
+    kPrintString( 0, 3, "====================================================" );
+
+	pstPTEntry = (PTENTRY*)0x142000;
+	kSetPageEntryData(&(pstPTEntry[511]),0,0x1FF000,0x00000003,0);
+	invlpg(&iVectorNumber);
+}
 /**
  *  공통으로 사용하는 인터럽트 핸들러
  */
@@ -82,4 +161,9 @@ void kKeyboardHandler( int iVectorNumber )
 
     // EOI 전송
     kSendEOIToPIC( iVectorNumber - PIC_IRQSTARTVECTOR );
+}
+
+static inline void invlpg(void *m)
+{
+	asm volatile("invlpg (%0)" : : "b"(m) : "memory");
 }
