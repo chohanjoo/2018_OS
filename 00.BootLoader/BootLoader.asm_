@@ -9,9 +9,7 @@ jmp 0x07C0:START
 ;MINT64 OS에 관련된 환경설정 값
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-TOTALSECTORCOUNT: dw 0x02	;부트로더를 제외한 MINT64 OS 이미지 크기
-
-KERNEL32SECTORCOUNT: dw 0x02    ; 보호 모드 커널의 총 섹터 수
+TOTALSECTORCOUNT: dw 2	;부트로더를 제외한 MINT64 OS 이미지 크기
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -81,35 +79,35 @@ RESETDISK:
 	; 현재 시간 출력	
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	
-	push TIMEMESSAGE
-	push 1
-	push 0
-	call PRINTMESSAGE
-	add sp,6
-
-	mov bx, TIMEBUF	;bx레지스터에 TIMEBUF주소값 넣기
-	mov ah, 0x02	;기능 번호는 02h
-	int 0x1a	;인터럽트 번호는 1ah
-	jc GETTIMEERROR	;에러 발생하면 이동
-	
-	;hour
-	mov al, ch	
-	call GETTIME
- 
-	;minute
-	mov al, cl
-	call GETTIME
-
-	;second
-	mov al, dh
-	call GETTIME
-	
-	
-	push TIMEBUF
-	push 1
-	push 15
-	call PRINTMESSAGE
-	add sp, 6
+;	push TIMEMESSAGE
+;	push 1
+;	push 0
+;	call PRINTMESSAGE
+;	add sp,6
+;
+;	mov bx, TIMEBUF	;bx레지스터에 TIMEBUF주소값 넣기
+;	mov ah, 0x02	;기능 번호는 02h
+;	int 0x1a	;인터럽트 번호는 1ah
+;	jc GETTIMEERROR	;에러 발생하면 이동
+;	
+;	;hour
+;	mov al, ch	
+;	call GETTIME
+ ;
+;	;minute
+;	mov al, cl
+;	call GETTIME
+;
+;	;second
+;	mov al, dh
+;	call GETTIME
+;	
+;	
+;	push TIMEBUF
+;	push 1
+;	push 15
+;	call PRINTMESSAGE
+;	add sp, 6
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	; 디스크에서 섹터를 읽음
@@ -171,6 +169,17 @@ READEND:
 	call PRINTMESSAGE
 	add sp,6
 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ; 섹터 검사
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    push IMAGECHECKINGMESSAGE
+    :push 3
+    push 0
+    call PRINTMESSAGE
+    add sp, 6
+
+    call CHECKOS
+
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	; 로딩한 가상 OS이미지 실행
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -184,6 +193,126 @@ READEND:
 ; 함수 코드 영역
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+CHECKOS:
+    mov si, 0x1000
+    mov es, si
+    mov si, 0
+
+    mov cx, word[ es : si ]
+
+    jmp $
+
+.PRINTHASH:
+    mov ax, cx
+    shr ah, 4
+    cmp ah, 9
+    jg .PRINTOVERTEN
+
+    jmp .HASHLOOP
+
+.PRINTOVERTEN:
+
+
+
+;    push es
+;    push si
+;    push di
+;    push ax
+;    push cx
+;    push dx
+;
+;    mov si, 0x1000
+;    mov es, si
+;    mov si, 4
+;
+;    mov cx, word[ es : si ]
+    ;mov bx, cx
+    ;shr bl, 4
+    ;and bl, 0xf
+    ;add bl, 0x30
+    ;mov ax, 0xb800
+    ;mov ds, ax
+    ;mov byte[0x00], bl
+    ;jmp $
+
+;    mov dx, word[ es : si+2 ]
+
+;.HASHLOOP:
+;    add si, 4
+;
+;    ;mov ax, word[ TOTALSECTORCOUNT ]
+;    ;mov bx, 512
+;    ;mul bx
+;    cmp si, 1024
+;    je .ENDHASHLOOP
+;
+;    mov ax, word[ es : si ]
+;    mov bx, word[ es : si+2 ]
+;    xor dx, ax
+;    xor cx, bx
+;
+;;    ;mov bx, cx
+;    ;and bh, 0xf
+;    ;add bh, 0x37
+;    ;shr bl, 4
+;    ;add bl, 0x30
+;    ;mov ax, 0xB800
+;    ;mov ds, ax
+;    ;mov byte[0x00], bh
+;    ;mov byte[0x02], bl
+;    ;jmp $
+;
+;    jmp .HASHLOOP
+;
+;.ENDHASHLOOP:
+;    mov ax, 0x1000
+;    mov es, ax
+;    mov si, 0
+;
+;    mov ax, word[ es : si ]
+;    mov bx, word[ es : si+2 ]
+;
+;    cmp dx, ax
+;    jne .FAIL
+;    cmp cx, bx
+;    jne .FAIL
+;
+;    jmp .SUCCESS
+;
+;.SUCCESS:
+;    push CHECKINGCOMPLETEMESSAGE
+;    push 4
+;    push 0
+;    call PRINTMESSAGE
+;    add sp, 6
+;
+;	jmp $
+;.FAIL:
+;    push CHECKINGERRORMESSAGE
+;    push 4
+;    push 0
+;    call PRINTMESSAGE
+;    add sp, 6
+;
+;	jmp $
+;
+;PRINTCHARACTER:
+;    push bp
+;    mov bp, sp
+;
+;	mov ax, 0xB800	; es세그먼트 레지스터에 비디오 모드 어드레스 설정
+;	mov es, ax
+;
+;    mov ax, word[ bp + 6 ]
+;    mov cx, word[ bp + 4 ] ;  열 위치
+;
+;
+;
+;
+;    pop bp
+;
+;    ret
+
 ;디스크 에러 처리함수
 HANDLEDISKERROR:	;예외처리
 	push DISKERRORMESSAGE	
@@ -194,26 +323,26 @@ HANDLEDISKERROR:	;예외처리
 	jmp $
 
 ;시간 에러 처리함수
-GETTIMEERROR:
-	push TIMEERRORMESSAGE
-	push 1
-	push 20
-	call PRINTMESSAGE
-
-	jmp $
-
-;시간을 얻는 함수
-GETTIME:
-	mov ah, al		
-	and ax, 0xf00f		;ah레지스터에는 십의자리, al레지스터에는 일의자리가 있으므로 필요한 부분만 남겨둠
-	shr ah, 4		;ah레지스터를 오른쪽으로 4비트 shift
-	add ax, 0x3030		;아스키문자로 변환(48씩 더하기)
-
-	mov byte[ bx ], ah	;십의 자리
-	add bx, 1
-	mov byte[ bx ], al	;일의 자리
-	add bx, 2
-	ret
+;GETTIMEERROR:
+;	push TIMEERRORMESSAGE
+;	push 1
+;	push 20
+;	call PRINTMESSAGE
+;
+;	jmp $
+;
+;;시간을 얻는 함수
+;GETTIME:
+;	mov ah, al		
+;	and ax, 0xf00f		;ah레지스터에는 십의자리, al레지스터에는 일의자리가 있으므로 필요한 부분만 남겨둠
+;	shr ah, 4		;ah레지스터를 오른쪽으로 4비트 shift
+;	add ax, 0x3030		;아스키문자로 변환(48씩 더하기)
+;
+;	mov byte[ bx ], ah	;십의 자리
+;	add bx, 1
+;	mov byte[ bx ], al	;일의 자리
+;	add bx, 2
+;	ret
 
 ;메시지 출력 함수(PARAM: X좌표, Y좌표, 문자열)
 PRINTMESSAGE:
@@ -272,17 +401,36 @@ PRINTMESSAGE:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; 데이터 영역(변수 등)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 ;메시지 - 마지막을 0으로 해서 MESSAGEEND로 감
-MESSAGE1: db 'MINT64 OS Boot Loader Start~!!', 0 
-DISKERRORMESSAGE: db 'DISK ERROR~', 0
-TIMEMESSAGE: db 'Current Time:',0
-IMAGELOADINGMESSAGE: db 'OS Image Loading...', 0
+MESSAGE1: db 'MINT64', 0 
+DISKERRORMESSAGE: db 'ERROR~', 0
+;TIMEMESSAGE: db 'Current Time:',0
+IMAGELOADINGMESSAGE: db 'Load', 0
 LOADINGCOMPLETEMESSAGE: db 'Complete~!!', 0
-TIMEERRORMESSAGE: db 'TIME ERROR~', 0
+;TIMEERRORMESSAGE: db 'TIME ERROR~', 0
+IMAGECHECKINGMESSAGE: db 'Checking... ', 0
+CHECKINGCOMPLETEMESSAGE: db 'Okay~!!', 0
+CHECKINGERRORMESSAGE: db 'Fail~!!', 0
+LOADEDHASHVALUEMESSAGE: db 'Hash Value: ', 0
+CALCULATEDHASHVALUEMESSAGE: db 'Hash Value: ', 0
+
+;;메시지 - 마지막을 0으로 해서 MESSAGEEND로 감
+;MESSAGE1: db 'MINT64 OS Boot Loader Start~!!', 0 
+;DISKERRORMESSAGE: db 'DISK ERROR~', 0
+;TIMEMESSAGE: db 'Current Time:',0
+;IMAGELOADINGMESSAGE: db 'OS Image Loading...', 0
+;LOADINGCOMPLETEMESSAGE: db 'Complete~!!', 0
+;TIMEERRORMESSAGE: db 'TIME ERROR~', 0
+;IMAGECHECKINGMESSAGE: db 'OS Image Checking... ', 0
+;CHECKINGCOMPLETEMESSAGE: db 'Okay~!!', 0
+;CHECKINGERRORMESSAGE: db 'Fail~!!', 0
+;LOADEDHASHVALUEMESSAGE: db 'Loaded Hash Value: ', 0
+;CALCULATEDHASHVALUEMESSAGE: db 'Calculated Hash Value: ', 0
 
 ;시간 관련 변수
-TIMEBUF: db '00:00:00', 0
+;TIMEBUF: db '00:00:00', 0
+
+HASHBUF: db '00000000', 0
 
 ;디스크 읽기 관련 변수
 SECTORNUMBER: db 0x02	;첫번째 섹터는 부트로더이므로 OS이미지는 2번째 섹터부터 시작
