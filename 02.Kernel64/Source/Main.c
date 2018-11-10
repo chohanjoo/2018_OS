@@ -2,7 +2,8 @@
 #include "Keyboard.h"
 #include "Descriptor.h"
 #include "PIC.h"
-
+#include "Console.h"
+#include "ConsoleShell.h"
 // 함수 선언
 void kPrintString( int iX, int iY, const char* pcString );
 BOOL ReadTest();
@@ -15,40 +16,57 @@ void Main( void )
 	BYTE bTemp;
 	int i=0;
 	KEYDATA stData;
+	int iCursorX, iCursorY;
+
+	kInitializeConsole(0,11);
 
 
-	kPrintString( 0, 11, "Switch To IA-32e Mode Success~!!" );
-	kPrintString( 0, 12, "IA-32e C Language Kernel Start..............[Pass]" );
+	kPrintf( "Switch To IA-32e Mode Success~!!\n" );
+	kPrintf( "IA-32e C Language Kernel Start..............[Pass]\n" );
+	kPrintf( "Initialize Console...............[Pass]\n");
 
-	kPrintString( 0, 13, "GDT Initialize And Switch For IA-32e Mode...[    ]" );
+	kGetCursor(&iCursorX,&iCursorY);
+	kPrintf( "GDT Initialize And Switch For IA-32e Mode...[    ]" );
 	kInitializeGDTTableAndTSS();
 	kLoadGDTR( GDTR_STARTADDRESS );
-	kPrintString( 45, 13, "Pass" );
+	kSetCursor( 45, iCursorY++);
+	kPrintf( "Pass\n" );
 
-	kPrintString( 0, 14, "TSS Segment Load............................[    ]" );
+	kPrintf( "TSS Segment Load............................[    ]" );
 	kLoadTR( GDT_TSSSEGMENT );
-	kPrintString( 45, 14, "Pass" );
+	kSetCursor( 45, iCursorY++);
+	kPrintf( "Pass\n" );
 
-	kPrintString( 0, 15, "IDT Initialize..............................[    ]" );
+	kPrintf( "IDT Initialize..............................[    ]" );
 	kInitializeIDTTables();    
 	kLoadIDTR( IDTR_STARTADDRESS );
-	kPrintString( 45, 15, "Pass" );
-	kPrintString( 0, 16, "Keyboard Activate And Queue Initialize......[    ]" );
+	kSetCursor( 45, iCursorY++);
+	kPrintf( "Pass\n" );
+
+	
+    kPrintf( "Total RAM Size Check........................[    ]" );
+    kCheckTotalRAMSize();
+    kSetCursor( 45, iCursorY++ );
+    kPrintf( "Pass], Size = %d MB\n", kGetTotalRAMSize() );
+
+	kPrintf( "Keyboard Activate And Queue Initialize......[    ]" );
 
 
 
 	// 키보드를 활성화
 	if( kInitializeKeyboard()  == TRUE )
 	{
-		kPrintString(45,16,"Pass");
+		kSetCursor( 45, iCursorY++);
+		kPrintf( "Pass\n" );
 		kChangeKeyboardLED(FALSE, FALSE, FALSE);
 	}
 	else{
-		kPrintString(45,16,"Fail");
+		kSetCursor( 45, iCursorY++);
+		kPrintf( "Fail\n" );
 		while(1);
 	}
 
-	kPrintString( 0, 17, "This message is printed through the video memory relocated to 0xAB8000" );
+//	kPrintf( "This message is printed through the video memory relocated to 0xAB8000\n" );
 
 //	kPrintString( 0, 18, "Test the Read-only Page Funtion: Read.......[    ]" );
 //	if(ReadTest())
@@ -58,13 +76,16 @@ void Main( void )
 //	if(WriteTest())
 //		kPrintString( 45, 19, "Pass");
 
-	kPrintString(0,20,"PIC Controller And Interrupt Initialize.....[    ]");
+	kPrintf( "PIC Controller And Interrupt Initialize.....[    ]");
 	// PIC 컨트롤러 초기화 및 모든 인터럽트 활성화
 	kInitializePIC();
 	kMaskPICInterrupt(0);
+	//kSetCursor( 45, iCursorY++ );
+	//kPrintf( "Pass2\n");
 	kEnableInterrupt();
-	kPrintString(45,20,"Pass");
-
+	kSetCursor( 45, iCursorY++ );
+	kPrintf( "Pass\n");
+/*
 	while(1)
 	{
 		// 키 큐에 데이터가 있음녀 키를 처
@@ -89,7 +110,8 @@ void Main( void )
 		}
 
 	}
-
+*/
+	kStartConsoleShell();
 
 }
 
@@ -102,7 +124,7 @@ void kPrintString( int iX, int iY, const char* pcString )
 	pstScreen += ( iY * 80  ) + iX;
 	for( i = 0 ; pcString[ i ] != 0 ; i++ )
 	{
-		pstScreen[ i ].bCharacter = pcString[ i ];
+		pstScreen[ i ].bCharactor = pcString[ i ];
 	}
 }
 

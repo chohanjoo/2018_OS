@@ -18,7 +18,7 @@
 // 비디오 모드 중 텍스트 모드 화면을 구성하는 자료구조
 typedef struct kCharacterStruct
 {
-    BYTE bCharacter;
+    BYTE bCharactor;
     BYTE bAttribute;
 } CHARACTER;
 
