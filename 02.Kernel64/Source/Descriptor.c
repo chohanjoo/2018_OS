@@ -1,11 +1,3 @@
-/**
- *  file    Descriptor.c
- *  date    2009/01/16
- *  author  kkamagui 
- *          Copyright(c)2008 All rights reserved by kkamagui
- *  brief   GDT 및 IDT에 관련된 각종 디스크립터에 대한 파일
- */
-
 #include "Descriptor.h"
 #include "Utility.h"
 #include "ISR.h"

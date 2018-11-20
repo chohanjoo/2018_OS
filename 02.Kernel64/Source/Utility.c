@@ -1,11 +1,3 @@
-/**
- *  file    Utility.h
- *  date    2009/01/17
- *  author  kkamagui 
- *          Copyright(c)2008 All rights reserved by kkamagui
- *  brief   OS에서 사용할 유틸리티 함수에 관련된 파일
- */
-
 #include "Utility.h"
 #include "AssemblyUtility.h"
 #include <stdarg.h>

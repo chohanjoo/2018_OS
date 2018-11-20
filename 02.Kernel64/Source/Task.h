@@ -1,11 +1,3 @@
-/**
- *  file    Task.h
- *  date    2009/02/19
- *  author  kkamagui 
- *          Copyright(c)2008 All rights reserved by kkamagui
- *  brief   태스크를 처리하는 함수에 관련된 파일
- */
-
 #ifndef __TASK_H__
 #define __TASK_H__
 

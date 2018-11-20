@@ -1,11 +1,3 @@
-/**
- *  file    PIT.h
- *  date    2009/02/08
- *  author  kkamagui 
- *          Copyright(c)2008 All rights reserved by kkamagui
- *  brief   PIT 컨트롤러에 관련된 헤더 파일
- */
-
 #ifndef __PIT_H__
 #define __PIT_H__
 

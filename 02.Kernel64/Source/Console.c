@@ -1,14 +1,7 @@
-/**
- *  file    Console.c
- *  date    2009/01/31
- *  author  kkamagui 
- *          Copyright(c)2008 All rights reserved by kkamagui
- *  brief   콘솔에 관련된 소스 파일
- */
-
 #include <stdarg.h>
 #include "Console.h"
 #include "Keyboard.h"
+#include "RTC.h"
 
 // 콘솔의 정보를 관리하는 자료구조
 CONSOLEMANAGER gs_stConsoleManager = { 0, };
@@ -74,6 +67,8 @@ void kPrintf( const char* pcFormatString, ... )
     va_start( ap, pcFormatString );
     kVSPrintf( vcBuffer, pcFormatString, ap );
     va_end( ap );
+
+    
     
     // 포맷 문자열을 화면에 출력
     iNextPrintOffset = kConsolePrintString( vcBuffer );
@@ -123,7 +118,7 @@ int kConsolePrintString( const char* pcBuffer )
             iPrintOffset++;
         }
         
-        // 출력할 위치가 화면의 최댓값(80 * 25)을 벗어났으면 스크롤 처리
+        // 출력할 위치가 화면의 최댓값(80 * 23)을 벗어났으면 스크롤 처리
         if( iPrintOffset >= ( CONSOLE_HEIGHT * CONSOLE_WIDTH ) )
         {
             // 가장 윗줄을 제외한 나머지를 한줄 위로 복사
@@ -166,12 +161,32 @@ void kClearScreen( void )
     kSetCursor( 0, 0 );
 }
 
+BYTE printCurrentTime(BYTE before){
+    BYTE bSecond, bMinute, bHour;
+    char time[8] = "00:00:00";
+    kReadRTCTime(&bHour, &bMinute, &bSecond);
+    if( bSecond == before + 1 || bSecond == 0){
+        time[0] = bHour / 10 + 48;
+        time[1] = bHour % 10 + 48;
+        time[3] = bMinute / 10 + 48;
+        time[4] = bMinute % 10 + 48;
+        time[6] = bSecond / 10 + 48;
+        time[7] = bSecond % 10 + 48;
+
+        kPrintStringXY(72, 24, time);
+    }
+    return bSecond;
+}
+
 /**
  *  getch() 함수의 구현
  */
 BYTE kGetCh( void )
 {
     KEYDATA stData;
+
+    BYTE bHour, bMinute, before;
+    kReadRTCTime(&bHour, &bMinute, &before);
     
     // 키가 눌러질때까지 대기함
     while( 1 )
@@ -179,7 +194,8 @@ BYTE kGetCh( void )
         // 키 큐에 데이터가 수신될 때까지 대기
         while( kGetKeyFromKeyQueue( &stData ) == FALSE )
         {
-            ;
+            //;
+            before = printCurrentTime(before);
         }
         
         // 키가 눌렸다는 데이터가 수신되면 ASCII 코드를 반환
@@ -208,3 +224,31 @@ void kPrintStringXY( int iX, int iY, const char* pcString )
     }
 }
 
+void kPrintTime(int iX, int iY,const char* pcFormatString, ...){
+    va_list ap;
+    char vcBuffer[ 1024 ];
+    CHARACTER* pstScreen = ( CHARACTER* ) CONSOLE_VIDEOMEMORYADDRESS;
+    int i;
+
+    // 가변 인자 리스트를 사용해서 vsprintf()로 처리
+    va_start( ap, pcFormatString );
+    kVSPrintf( vcBuffer, pcFormatString, ap );
+    va_end( ap );
+    
+     // 비디오 메모리 어드레스에서 현재 출력할 위치를 계산
+    pstScreen += ( iY * CONSOLE_WIDTH ) + iX;
+    // 문자열의 길이만큼 루프를 돌면서 문자와 속성을 저장
+    for( i = 0 ; vcBuffer[ i ] != 0 ; i++ )
+    {
+        pstScreen[ i ].bCharactor = vcBuffer[ i ];
+        pstScreen[ i ].bAttribute = CONSOLE_DEFAULTTEXTCOLOR;
+    }
+
+}
+
+void rdtscl(unsigned long long *ll)
+{
+    unsigned int lo, hi;
+    __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));                        
+    *ll = ( (unsigned long long)lo)|( ((unsigned long long)hi)<<32 );  
+}

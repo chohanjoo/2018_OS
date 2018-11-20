@@ -1,11 +1,3 @@
-/**
- *  file    PIT.c
- *  date    2009/02/08
- *  author  kkamagui 
- *          Copyright(c)2008 All rights reserved by kkamagui
- *  brief   PIT 컨트롤러에 관련된 헤더 파일
- */
-
 #include "PIT.h"
 
 /*

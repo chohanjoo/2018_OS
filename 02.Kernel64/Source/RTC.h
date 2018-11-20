@@ -1,11 +1,3 @@
-/**
- *  file    RTC.c
- *  date    2009/02/14
- *  author  kkamagui 
- *          Copyright(c)2008 All rights reserved by kkamagui
- *  brief   RTC 컨트롤러에 관련된 헤더 파일
- */
-
 #ifndef __RTC_H__
 #define __RTC_H__
 

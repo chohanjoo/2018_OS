@@ -1,11 +1,3 @@
-/**
- *  file    ConsoleShell.c
- *  date    2009/01/31
- *  author  kkamagui 
- *          Copyright(c)2008 All rights reserved by kkamagui
- *  brief   콘솔 셸에 관련된 소스 파일
- */
-
 #include "ConsoleShell.h"
 #include "Console.h"
 #include "Keyboard.h"
@@ -13,22 +5,27 @@
 #include "PIT.h"
 #include "RTC.h"
 #include "AssemblyUtility.h"
+#include "Timer.h"
 
+char command_history[10][300];
+int count = 0;
+int task_count = 0;
 // 커맨드 테이블 정의
 SHELLCOMMANDENTRY gs_vstCommandTable[] =
 {
-        { "help", "Show Help", kHelp },
-        { "cls", "Clear Screen", kCls },
-        { "totalram", "Show Total RAM Size", kShowTotalRAMSize },
-        { "strtod", "String To Decial/Hex Convert", kStringToDecimalHexTest },
-        { "shutdown", "Shutdown And Reboot OS", kShutdown },
-        { "settimer", "Set PIT Controller Counter0, ex)settimer 10(ms) 1(periodic)", 
-                kSetTimer },
-        { "wait", "Wait ms Using PIT, ex)wait 100(ms)", kWaitUsingPIT },
-        { "rdtsc", "Read Time Stamp Counter", kReadTimeStampCounter },
-        { "cpuspeed", "Measure Processor Speed", kMeasureProcessorSpeed },
-        { "date", "Show Date And Time", kShowDateAndTime },
-        { "createtask", "Create Task", kCreateTestTask },
+	{ "help", "Show Help", kHelp },
+	{ "cls", "Clear Screen", kCls },
+	{ "totalram", "Show Total RAM Size", kShowTotalRAMSize },
+	{ "strtod", "String To Decial/Hex Convert", kStringToDecimalHexTest },
+	{ "shutdown", "Shutdown And Reboot OS", kShutdown },
+	{ "settimer", "Set PIT Controller Counter0, ex)settimer 10(ms) 1(periodic)", 
+		kSetTimer },
+	{ "wait", "Wait ms Using PIT, ex)wait 100(ms)", kWaitUsingPIT },
+	{ "rdtsc", "Read Time Stamp Counter", kReadTimeStampCounter },
+	{ "cpuspeed", "Measure Processor Speed", kMeasureProcessorSpeed },
+	{ "date", "Show Date And Time", kShowDateAndTime },
+	{ "createtask", "Create Task", kCreateTestTask },
+	{ "time", "Measure Command time", kMeasureCommandTime},
 };                                     
 
 //==============================================================================
@@ -39,112 +36,212 @@ SHELLCOMMANDENTRY gs_vstCommandTable[] =
  */
 void kStartConsoleShell( void )
 {
-    char vcCommandBuffer[ CONSOLESHELL_MAXCOMMANDBUFFERCOUNT ];
-    int iCommandBufferIndex = 0;
-    BYTE bKey;
-    int iCursorX, iCursorY;
-    
-    // 프롬프트 출력
-    kPrintf( CONSOLESHELL_PROMPTMESSAGE );
-    
-    while( 1 )
-    {
-        // 키가 수신될 때까지 대기
-        bKey = kGetCh();
-        // Backspace 키 처리
-        if( bKey == KEY_BACKSPACE )
-        {
-            if( iCommandBufferIndex > 0 )
-            {
-                // 현재 커서 위치를 얻어서 한 문자 앞으로 이동한 다음 공백을 출력하고 
-                // 커맨드 버퍼에서 마지막 문자 삭제
-                kGetCursor( &iCursorX, &iCursorY );
-                kPrintStringXY( iCursorX - 1, iCursorY, " " );
-                kSetCursor( iCursorX - 1, iCursorY );
-                iCommandBufferIndex--;
-            }
-        }
-        // 엔터 키 처리
-        else if( bKey == KEY_ENTER )
-        {
-            kPrintf( "\n" );
-            
-            if( iCommandBufferIndex > 0 )
-            {
-                // 커맨드 버퍼에 있는 명령을 실행
-                vcCommandBuffer[ iCommandBufferIndex ] = '\0';
-                kExecuteCommand( vcCommandBuffer );
-            }
-            
-            // 프롬프트 출력 및 커맨드 버퍼 초기화
-            kPrintf( "%s", CONSOLESHELL_PROMPTMESSAGE );            
-            kMemSet( vcCommandBuffer, '\0', CONSOLESHELL_MAXCOMMANDBUFFERCOUNT );
-            iCommandBufferIndex = 0;
-        }
-        // 시프트 키, CAPS Lock, NUM Lock, Scroll Lock은 무시
-        else if( ( bKey == KEY_LSHIFT ) || ( bKey == KEY_RSHIFT ) ||
-                 ( bKey == KEY_CAPSLOCK ) || ( bKey == KEY_NUMLOCK ) ||
-                 ( bKey == KEY_SCROLLLOCK ) )
-        {
-            ;
-        }
-        else
-        {
-            // TAB은 공백으로 전환
-            if( bKey == KEY_TAB )
-            {
-                bKey = ' ';
-            }
-            
-            // 버퍼에 공간이 남아있을 때만 가능
-            if( iCommandBufferIndex < CONSOLESHELL_MAXCOMMANDBUFFERCOUNT )
-            {
-                vcCommandBuffer[ iCommandBufferIndex++ ] = bKey;
-                kPrintf( "%c", bKey );
-            }
-        }
-    }
+	char vcCommandBuffer[ CONSOLESHELL_MAXCOMMANDBUFFERCOUNT ];
+	int iCommandBufferIndex = 0;
+	BYTE bKey;
+	int iCursorX, iCursorY;
+	WORD startCounter=0;
+	WORD endCounter=0;
+	int current = count;
+	int i;
+
+	// 프롬프트 출력
+	kPrintf( CONSOLESHELL_PROMPTMESSAGE );
+	print_date_below_monitor();
+
+	while( 1 )
+	{
+		// 키가 수신될 때까지 대기
+		bKey = kGetCh();
+		// Backspace 키 처리
+		if( bKey == KEY_BACKSPACE )
+		{
+			if( iCommandBufferIndex > 0 )
+			{
+				// 현재 커서 위치를 얻어서 한 문자 앞으로 이동한 다음 공백을 출력하고 
+				// 커맨드 버퍼에서 마지막 문자 삭제
+				kGetCursor( &iCursorX, &iCursorY );
+				kPrintStringXY( iCursorX - 1, iCursorY, " " );
+				kSetCursor( iCursorX - 1, iCursorY );
+				iCommandBufferIndex--;
+			}
+		}
+		// 엔터 키 처리
+		else if( bKey == KEY_ENTER )
+		{
+			kPrintf( "\n" );
+			delete_date_below_monitor();
+
+			if( iCommandBufferIndex > 0 )
+			{
+				// 커맨드 버퍼에 있는 명령을 실행
+				vcCommandBuffer[ iCommandBufferIndex ] = '\0';
+				//startCounter = kReadCounter0();
+				if(count != 10){
+					kMemCpy(command_history[count++],vcCommandBuffer,iCommandBufferIndex);
+					current = count;
+				}
+				else{
+					count = 0;
+					kMemCpy(command_history[count++],vcCommandBuffer,iCommandBufferIndex);
+				}
+
+				task_count = 0;
+				kInitializePIT(0,FALSE);
+				startCounter = kReadCounter0();
+				kExecuteCommand( vcCommandBuffer );
+				 endCounter = kReadCounter0();
+
+				task_count = startCounter - endCounter;
+				///	endCounter = kReadCounter0();
+				//	kPrintf("measure : %d\n",endCounter - startCounter);
+			}
+			
+			// 프롬프트 출력 및 커맨드 버퍼 초기화
+			kPrintf( "%s", CONSOLESHELL_PROMPTMESSAGE );     
+			print_date_below_monitor();
+			kMemSet( vcCommandBuffer, '\0', CONSOLESHELL_MAXCOMMANDBUFFERCOUNT );
+			iCommandBufferIndex = 0;
+		}
+		// 시프트 키, CAPS Lock, NUM Lock, Scroll Lock은 무시
+		else if( ( bKey == KEY_LSHIFT ) || ( bKey == KEY_RSHIFT ) ||
+				( bKey == KEY_CAPSLOCK ) || ( bKey == KEY_NUMLOCK ) ||
+				( bKey == KEY_SCROLLLOCK ) )
+		{
+			;
+		}
+		else if(bKey==KEY_RIGHT){
+			kGetCursor( &iCursorX, &iCursorY );
+			if(iCommandBufferIndex+7!=iCursorX)
+			kSetCursor( iCursorX+1, iCursorY );
+		}
+		else if(bKey==KEY_LEFT){
+			kGetCursor( &iCursorX, &iCursorY );
+			if(7<iCursorX)
+			kSetCursor( iCursorX-1, iCursorY );
+		}
+		else if( bKey == KEY_UP){
+			if(current != 0)
+				current--;
+			kGetCursor( &iCursorX, &iCursorY );
+			for( i=80;i>0;--i){
+				kPrintStringXY( i , iCursorY, " " );
+				kSetCursor( i, iCursorY );
+			}
+			kSetCursor( 0, iCursorY );
+			kPrintf( "%s", CONSOLESHELL_PROMPTMESSAGE );
+			kPrintf("%s",command_history[current]);
+
+			iCommandBufferIndex = iCursorX;
+			kMemCpy(vcCommandBuffer,command_history[current],iCommandBufferIndex);
+		}
+		else if( bKey == KEY_DOWN){
+
+			kGetCursor( &iCursorX, &iCursorY );
+			int tmpCursorX = iCursorX;
+			for( i=80;i>0;--i){
+				kPrintStringXY( i , iCursorY, " " );
+				kSetCursor( i, iCursorY );
+			}
+			kSetCursor( 0, iCursorY );
+			kPrintf( "%s", CONSOLESHELL_PROMPTMESSAGE );
+			current++;
+			if(current < count){
+				kPrintf("%s",command_history[current]);
+				iCommandBufferIndex = tmpCursorX;
+				kMemCpy(vcCommandBuffer,command_history[current],iCommandBufferIndex);
+			}
+			else if(current == count )
+				kPrintf("");
+			else{
+				current--;
+				kPrintf("");
+			}
+		}
+		else
+		{
+			// TAB은 공백으로 전환
+			if( bKey == KEY_TAB )
+			{
+				bKey = ' ';
+			}
+
+			// 버퍼에 공간이 남아있을 때만 가능
+			if( iCommandBufferIndex < CONSOLESHELL_MAXCOMMANDBUFFERCOUNT )
+			{
+				vcCommandBuffer[ iCommandBufferIndex++ ] = bKey;
+				kPrintf( "%c", bKey );
+			}
+		}
+	}
 }
 
+void print_date_below_monitor(){
+	int i=0;
+	int iCursorX,iCursorY;
+	BYTE bSecond, bMinute, bHour;
+
+	for(i=0;i<80;++i)
+		kPrintStringXY(i,23,"=");
+	
+	kPrintTime(0,24,"Running Time : %d%d:%d%d",(task_count / 1000000)/10,(task_count / 1000000)%10,(task_count / 10000)/10,(task_count / 10000)%10);
+
+	// RTC 컨트롤러에서 시간 및 일자를 읽음
+	kReadRTCTime( &bHour, &bMinute, &bSecond );
+	kPrintTime(62,24, "Current : %d:%d:%d", bHour, bMinute, bSecond );
+	
+}
+
+void delete_date_below_monitor(){
+
+	int i=0;
+	int iCursorX,iCursorY;
+	kGetCursor( &iCursorX, &iCursorY );
+
+	kSetCursor(0,23);
+	for(i=0;i<77;++i)
+		kPrintf(" ");
+	kSetCursor(iCursorX,iCursorY);
+}
 /*
  *  커맨드 버퍼에 있는 커맨드를 비교하여 해당 커맨드를 처리하는 함수를 수행
  */
 void kExecuteCommand( const char* pcCommandBuffer )
 {
-    int i, iSpaceIndex;
-    int iCommandBufferLength, iCommandLength;
-    int iCount;
-    
-    // 공백으로 구분된 커맨드를 추출
-    iCommandBufferLength = kStrLen( pcCommandBuffer );
-    for( iSpaceIndex = 0 ; iSpaceIndex < iCommandBufferLength ; iSpaceIndex++ )
-    {
-        if( pcCommandBuffer[ iSpaceIndex ] == ' ' )
-        {
-            break;
-        }
-    }
-    
-    // 커맨드 테이블을 검사해서 동일한 이름의 커맨드가 있는지 확인
-    iCount = sizeof( gs_vstCommandTable ) / sizeof( SHELLCOMMANDENTRY );
-    for( i = 0 ; i < iCount ; i++ )
-    {
-        iCommandLength = kStrLen( gs_vstCommandTable[ i ].pcCommand );
-        // 커맨드의 길이와 내용이 완전히 일치하는지 검사
-        if( ( iCommandLength == iSpaceIndex ) &&
-            ( kMemCmp( gs_vstCommandTable[ i ].pcCommand, pcCommandBuffer,
-                       iSpaceIndex ) == 0 ) )
-        {
-            gs_vstCommandTable[ i ].pfFunction( pcCommandBuffer + iSpaceIndex + 1 );
-            break;
-        }
-    }
+	int i, iSpaceIndex;
+	int iCommandBufferLength, iCommandLength;
+	int iCount;
 
-    // 리스트에서 찾을 수 없다면 에러 출력
-    if( i >= iCount )
-    {
-        kPrintf( "'%s' is not found.\n", pcCommandBuffer );
-    }
+	// 공백으로 구분된 커맨드를 추출
+	iCommandBufferLength = kStrLen( pcCommandBuffer );
+	for( iSpaceIndex = 0 ; iSpaceIndex < iCommandBufferLength ; iSpaceIndex++ )
+	{
+		if( pcCommandBuffer[ iSpaceIndex ] == ' ' )
+		{
+			break;
+		}
+	}
+
+	// 커맨드 테이블을 검사해서 동일한 이름의 커맨드가 있는지 확인
+	iCount = sizeof( gs_vstCommandTable ) / sizeof( SHELLCOMMANDENTRY );
+	for( i = 0 ; i < iCount ; i++ )
+	{
+		iCommandLength = kStrLen( gs_vstCommandTable[ i ].pcCommand );
+		// 커맨드의 길이와 내용이 완전히 일치하는지 검사
+		if( ( iCommandLength == iSpaceIndex ) &&
+				( kMemCmp( gs_vstCommandTable[ i ].pcCommand, pcCommandBuffer,
+						   iSpaceIndex ) == 0 ) )
+		{
+			gs_vstCommandTable[ i ].pfFunction( pcCommandBuffer + iSpaceIndex + 1 );
+			break;
+		}
+	}
+
+	// 리스트에서 찾을 수 없다면 에러 출력
+	if( i >= iCount )
+	{
+		kPrintf( "'%s' is not found.\n", pcCommandBuffer );
+	}
 }
 
 /**
@@ -152,9 +249,9 @@ void kExecuteCommand( const char* pcCommandBuffer )
  */
 void kInitializeParameter( PARAMETERLIST* pstList, const char* pcParameter )
 {
-    pstList->pcBuffer = pcParameter;
-    pstList->iLength = kStrLen( pcParameter );
-    pstList->iCurrentPosition = 0;
+	pstList->pcBuffer = pcParameter;
+	pstList->iLength = kStrLen( pcParameter );
+	pstList->iCurrentPosition = 0;
 }
 
 /**
@@ -162,34 +259,34 @@ void kInitializeParameter( PARAMETERLIST* pstList, const char* pcParameter )
  */
 int kGetNextParameter( PARAMETERLIST* pstList, char* pcParameter )
 {
-    int i;
-    int iLength;
+	int i;
+	int iLength;
 
-    // 더 이상 파라미터가 없으면 나감
-    if( pstList->iLength <= pstList->iCurrentPosition )
-    {
-        return 0;
-    }
-    
-    // 버퍼의 길이만큼 이동하면서 공백을 검색
-    for( i = pstList->iCurrentPosition ; i < pstList->iLength ; i++ )
-    {
-        if( pstList->pcBuffer[ i ] == ' ' )
-        {
-            break;
-        }
-    }
-    
-    // 파라미터를 복사하고 길이를 반환
-    kMemCpy( pcParameter, pstList->pcBuffer + pstList->iCurrentPosition, i );
-    iLength = i - pstList->iCurrentPosition;
-    pcParameter[ iLength ] = '\0';
+	// 더 이상 파라미터가 없으면 나감
+	if( pstList->iLength <= pstList->iCurrentPosition )
+	{
+		return 0;
+	}
 
-    // 파라미터의 위치 업데이트
-    pstList->iCurrentPosition += iLength + 1;
-    return iLength;
+	// 버퍼의 길이만큼 이동하면서 공백을 검색
+	for( i = pstList->iCurrentPosition ; i < pstList->iLength ; i++ )
+	{
+		if( pstList->pcBuffer[ i ] == ' ' )
+		{
+			break;
+		}
+	}
+
+	// 파라미터를 복사하고 길이를 반환
+	kMemCpy( pcParameter, pstList->pcBuffer + pstList->iCurrentPosition, i );
+	iLength = i - pstList->iCurrentPosition;
+	pcParameter[ iLength ] = '\0';
+
+	// 파라미터의 위치 업데이트
+	pstList->iCurrentPosition += iLength + 1;
+	return iLength;
 }
-    
+
 //==============================================================================
 //  커맨드를 처리하는 코드
 //==============================================================================
@@ -198,36 +295,36 @@ int kGetNextParameter( PARAMETERLIST* pstList, char* pcParameter )
  */
 void kHelp( const char* pcCommandBuffer )
 {
-    int i;
-    int iCount;
-    int iCursorX, iCursorY;
-    int iLength, iMaxCommandLength = 0;
-    
-    
-    kPrintf( "=========================================================\n" );
-    kPrintf( "                    MINT64 Shell Help                    \n" );
-    kPrintf( "=========================================================\n" );
-    
-    iCount = sizeof( gs_vstCommandTable ) / sizeof( SHELLCOMMANDENTRY );
+	int i;
+	int iCount;
+	int iCursorX, iCursorY;
+	int iLength, iMaxCommandLength = 0;
 
-    // 가장 긴 커맨드의 길이를 계산
-    for( i = 0 ; i < iCount ; i++ )
-    {
-        iLength = kStrLen( gs_vstCommandTable[ i ].pcCommand );
-        if( iLength > iMaxCommandLength )
-        {
-            iMaxCommandLength = iLength;
-        }
-    }
-    
-    // 도움말 출력
-    for( i = 0 ; i < iCount ; i++ )
-    {
-        kPrintf( "%s", gs_vstCommandTable[ i ].pcCommand );
-        kGetCursor( &iCursorX, &iCursorY );
-        kSetCursor( iMaxCommandLength, iCursorY );
-        kPrintf( "  - %s\n", gs_vstCommandTable[ i ].pcHelp );
-    }
+
+	kPrintf( "=========================================================\n" );
+	kPrintf( "                    MINT64 Shell Help                    \n" );
+	kPrintf( "=========================================================\n" );
+
+	iCount = sizeof( gs_vstCommandTable ) / sizeof( SHELLCOMMANDENTRY );
+
+	// 가장 긴 커맨드의 길이를 계산
+	for( i = 0 ; i < iCount ; i++ )
+	{
+		iLength = kStrLen( gs_vstCommandTable[ i ].pcCommand );
+		if( iLength > iMaxCommandLength )
+		{
+			iMaxCommandLength = iLength;
+		}
+	}
+
+	// 도움말 출력
+	for( i = 0 ; i < iCount ; i++ )
+	{
+		kPrintf( "%s", gs_vstCommandTable[ i ].pcCommand );
+		kGetCursor( &iCursorX, &iCursorY );
+		kSetCursor( iMaxCommandLength, iCursorY );
+		kPrintf( "  - %s\n", gs_vstCommandTable[ i ].pcHelp );
+	}
 }
 
 /**
@@ -235,9 +332,9 @@ void kHelp( const char* pcCommandBuffer )
  */
 void kCls( const char* pcParameterBuffer )
 {
-    // 맨 윗줄은 디버깅 용으로 사용하므로 화면을 지운 후, 라인 1로 커서 이동
-    kClearScreen();
-    kSetCursor( 0, 1 );
+	// 맨 윗줄은 디버깅 용으로 사용하므로 화면을 지운 후, 라인 1로 커서 이동
+	kClearScreen();
+	kSetCursor( 0, 1 );
 }
 
 /**
@@ -245,7 +342,7 @@ void kCls( const char* pcParameterBuffer )
  */
 void kShowTotalRAMSize( const char* pcParameterBuffer )
 {
-    kPrintf( "Total RAM Size = %d MB\n", kGetTotalRAMSize() );
+	kPrintf( "Total RAM Size = %d MB\n", kGetTotalRAMSize() );
 }
 
 /**
@@ -253,44 +350,44 @@ void kShowTotalRAMSize( const char* pcParameterBuffer )
  */
 void kStringToDecimalHexTest( const char* pcParameterBuffer )
 {
-    char vcParameter[ 100 ];
-    int iLength;
-    PARAMETERLIST stList;
-    int iCount = 0;
-    long lValue;
-    
-    // 파라미터 초기화
-    kInitializeParameter( &stList, pcParameterBuffer );
-    
-    while( 1 )
-    {
-        // 다음 파라미터를 구함, 파라미터의 길이가 0이면 파라미터가 없는 것이므로
-        // 종료
-        iLength = kGetNextParameter( &stList, vcParameter );
-        if( iLength == 0 )
-        {
-            break;
-        }
+	char vcParameter[ 100 ];
+	int iLength;
+	PARAMETERLIST stList;
+	int iCount = 0;
+	long lValue;
 
-        // 파라미터에 대한 정보를 출력하고 16진수인지 10진수인지 판단하여 변환한 후
-        // 결과를 printf로 출력
-        kPrintf( "Param %d = '%s', Length = %d, ", iCount + 1, 
-                 vcParameter, iLength );
+	// 파라미터 초기화
+	kInitializeParameter( &stList, pcParameterBuffer );
 
-        // 0x로 시작하면 16진수, 그외는 10진수로 판단
-        if( kMemCmp( vcParameter, "0x", 2 ) == 0 )
-        {
-            lValue = kAToI( vcParameter + 2, 16 );
-            kPrintf( "HEX Value = %q\n", lValue );
-        }
-        else
-        {
-            lValue = kAToI( vcParameter, 10 );
-            kPrintf( "Decimal Value = %d\n", lValue );
-        }
-        
-        iCount++;
-    }
+	while( 1 )
+	{
+		// 다음 파라미터를 구함, 파라미터의 길이가 0이면 파라미터가 없는 것이므로
+		// 종료
+		iLength = kGetNextParameter( &stList, vcParameter );
+		if( iLength == 0 )
+		{
+			break;
+		}
+
+		// 파라미터에 대한 정보를 출력하고 16진수인지 10진수인지 판단하여 변환한 후
+		// 결과를 printf로 출력
+		kPrintf( "Param %d = '%s', Length = %d, ", iCount + 1, 
+				vcParameter, iLength );
+
+		// 0x로 시작하면 16진수, 그외는 10진수로 판단
+		if( kMemCmp( vcParameter, "0x", 2 ) == 0 )
+		{
+			lValue = kAToI( vcParameter + 2, 16 );
+			kPrintf( "HEX Value = %q\n", lValue );
+		}
+		else
+		{
+			lValue = kAToI( vcParameter, 10 );
+			kPrintf( "Decimal Value = %d\n", lValue );
+		}
+
+		iCount++;
+	}
 }
 
 /**
@@ -298,12 +395,12 @@ void kStringToDecimalHexTest( const char* pcParameterBuffer )
  */
 void kShutdown( const char* pcParamegerBuffer )
 {
-    kPrintf( "System Shutdown Start...\n" );
-    
-    // 키보드 컨트롤러를 통해 PC를 재시작
-    kPrintf( "Press Any Key To Reboot PC..." );
-    kGetCh();
-    kReboot();
+	kPrintf( "System Shutdown Start...\n" );
+
+	// 키보드 컨트롤러를 통해 PC를 재시작
+	kPrintf( "Press Any Key To Reboot PC..." );
+	kGetCh();
+	kReboot();
 }
 
 /**
@@ -311,32 +408,32 @@ void kShutdown( const char* pcParamegerBuffer )
  */
 void kSetTimer( const char* pcParameterBuffer )
 {
-    char vcParameter[ 100 ];
-    PARAMETERLIST stList;
-    long lValue;
-    BOOL bPeriodic;
+	char vcParameter[ 100 ];
+	PARAMETERLIST stList;
+	long lValue;
+	BOOL bPeriodic;
 
-    // 파라미터 초기화
-    kInitializeParameter( &stList, pcParameterBuffer );
-    
-    // milisecond 추출
-    if( kGetNextParameter( &stList, vcParameter ) == 0 )
-    {
-        kPrintf( "ex)settimer 10(ms) 1(periodic)\n" );
-        return ;
-    }
-    lValue = kAToI( vcParameter, 10 );
+	// 파라미터 초기화
+	kInitializeParameter( &stList, pcParameterBuffer );
 
-    // Periodic 추출
-    if( kGetNextParameter( &stList, vcParameter ) == 0 )
-    {
-        kPrintf( "ex)settimer 10(ms) 1(periodic)\n" );
-        return ;
-    }    
-    bPeriodic = kAToI( vcParameter, 10 );
-    
-    kInitializePIT( MSTOCOUNT( lValue ), bPeriodic );
-    kPrintf( "Time = %d ms, Periodic = %d Change Complete\n", lValue, bPeriodic );
+	// milisecond 추출
+	if( kGetNextParameter( &stList, vcParameter ) == 0 )
+	{
+		kPrintf( "ex)settimer 10(ms) 1(periodic)\n" );
+		return ;
+	}
+	lValue = kAToI( vcParameter, 10 );
+
+	// Periodic 추출
+	if( kGetNextParameter( &stList, vcParameter ) == 0 )
+	{
+		kPrintf( "ex)settimer 10(ms) 1(periodic)\n" );
+		return ;
+	}    
+	bPeriodic = kAToI( vcParameter, 10 );
+
+	kInitializePIT( MSTOCOUNT( lValue ), bPeriodic );
+	kPrintf( "Time = %d ms, Periodic = %d Change Complete\n", lValue, bPeriodic );
 }
 
 /**
@@ -344,35 +441,37 @@ void kSetTimer( const char* pcParameterBuffer )
  */
 void kWaitUsingPIT( const char* pcParameterBuffer )
 {
-    char vcParameter[ 100 ];
-    int iLength;
-    PARAMETERLIST stList;
-    long lMillisecond;
-    int i;
-    
-    // 파라미터 초기화
-    kInitializeParameter( &stList, pcParameterBuffer );
-    if( kGetNextParameter( &stList, vcParameter ) == 0 )
-    {
-        kPrintf( "ex)wait 100(ms)\n" );
-        return ;
-    }
-    
-    lMillisecond = kAToI( pcParameterBuffer, 10 );
-    kPrintf( "%d ms Sleep Start...\n", lMillisecond );
-    
-    // 인터럽트를 비활성화하고 PIT 컨트롤러를 통해 직접 시간을 측정
-    kDisableInterrupt();
-    for( i = 0 ; i < lMillisecond / 30 ; i++ )
-    {
-        kWaitUsingDirectPIT( MSTOCOUNT( 30 ) );
-    }
-    kWaitUsingDirectPIT( MSTOCOUNT( lMillisecond % 30 ) );   
-    kEnableInterrupt();
-    kPrintf( "%d ms Sleep Complete\n", lMillisecond );
-    
-    // 타이머 복원
-    kInitializePIT( MSTOCOUNT( 1 ), TRUE );
+	char vcParameter[ 100 ];
+	int iLength;
+	PARAMETERLIST stList;
+	long lMillisecond;
+	int i;
+	BYTE bHour, bMinute, before;
+    kReadRTCTime(&bHour, &bMinute, &before);
+	// 파라미터 초기화
+	kInitializeParameter( &stList, pcParameterBuffer );
+	if( kGetNextParameter( &stList, vcParameter ) == 0 )
+	{
+		kPrintf( "ex)wait 100(ms)\n" );
+		return ;
+	}
+
+	lMillisecond = kAToI( pcParameterBuffer, 10 );
+	kPrintf( "%d ms Sleep Start...\n", lMillisecond );
+
+	// 인터럽트를 비활성화하고 PIT 컨트롤러를 통해 직접 시간을 측정
+	kDisableInterrupt();
+	for( i = 0 ; i < lMillisecond / 30 ; i++ )
+	{
+		before = printCurrentTime(before);
+		kWaitUsingDirectPIT( MSTOCOUNT( 30 ) );
+	}
+	kWaitUsingDirectPIT( MSTOCOUNT( lMillisecond % 30 ) );   
+	kEnableInterrupt();
+	kPrintf( "%d ms Sleep Complete\n", lMillisecond );
+
+	// 타이머 복원
+	kInitializePIT( MSTOCOUNT( 1 ), TRUE );
 }
 
 /**
@@ -380,10 +479,10 @@ void kWaitUsingPIT( const char* pcParameterBuffer )
  */
 void kReadTimeStampCounter( const char* pcParameterBuffer )
 {
-    QWORD qwTSC;
-    
-    qwTSC = kReadTSC();
-    kPrintf( "Time Stamp Counter = %q\n", qwTSC );
+	QWORD qwTSC;
+
+	qwTSC = kReadTSC();
+	kPrintf( "Time Stamp Counter = %q\n", qwTSC );
 }
 
 /**
@@ -391,26 +490,29 @@ void kReadTimeStampCounter( const char* pcParameterBuffer )
  */
 void kMeasureProcessorSpeed( const char* pcParameterBuffer )
 {
-    int i;
-    QWORD qwLastTSC, qwTotalTSC = 0;
-        
-    kPrintf( "Now Measuring." );
-    
-    // 10초 동안 변화한 타임 스탬프 카운터를 이용하여 프로세서의 속도를 간접적으로 측정
-    kDisableInterrupt();    
-    for( i = 0 ; i < 200 ; i++ )
-    {
-        qwLastTSC = kReadTSC();
-        kWaitUsingDirectPIT( MSTOCOUNT( 50 ) );
-        qwTotalTSC += kReadTSC() - qwLastTSC;
+	int i;
+	QWORD qwLastTSC, qwTotalTSC = 0;
+	BYTE bHour, bMinute, before;
+    kReadRTCTime(&bHour, &bMinute, &before);
 
-        kPrintf( "." );
-    }
-    // 타이머 복원
-    kInitializePIT( MSTOCOUNT( 1 ), TRUE );    
-    kEnableInterrupt();
-    
-    kPrintf( "\nCPU Speed = %d MHz\n", qwTotalTSC / 10 / 1000 / 1000 );
+	kPrintf( "Now Measuring." );
+
+	// 10초 동안 변화한 타임 스탬프 카운터를 이용하여 프로세서의 속도를 간접적으로 측정
+	kDisableInterrupt();    
+	for( i = 0 ; i < 200 ; i++ )
+	{
+		before = printCurrentTime(before);
+		qwLastTSC = kReadTSC();
+		kWaitUsingDirectPIT( MSTOCOUNT( 50 ) );
+		qwTotalTSC += kReadTSC() - qwLastTSC;
+
+		kPrintf( "." );
+	}
+	// 타이머 복원
+	kInitializePIT( MSTOCOUNT( 1 ), TRUE );    
+	kEnableInterrupt();
+
+	kPrintf( "\nCPU Speed = %d MHz\n", qwTotalTSC / 10 / 1000 / 1000 );
 }
 
 /**
@@ -418,17 +520,17 @@ void kMeasureProcessorSpeed( const char* pcParameterBuffer )
  */
 void kShowDateAndTime( const char* pcParameterBuffer )
 {
-    BYTE bSecond, bMinute, bHour;
-    BYTE bDayOfWeek, bDayOfMonth, bMonth;
-    WORD wYear;
+	BYTE bSecond, bMinute, bHour;
+	BYTE bDayOfWeek, bDayOfMonth, bMonth;
+	WORD wYear;
 
-    // RTC 컨트롤러에서 시간 및 일자를 읽음
-    kReadRTCTime( &bHour, &bMinute, &bSecond );
-    kReadRTCDate( &wYear, &bMonth, &bDayOfMonth, &bDayOfWeek );
-    
-    kPrintf( "Date: %d/%d/%d %s, ", wYear, bMonth, bDayOfMonth,
-             kConvertDayOfWeekToString( bDayOfWeek ) );
-    kPrintf( "Time: %d:%d:%d\n", bHour, bMinute, bSecond );
+	// RTC 컨트롤러에서 시간 및 일자를 읽음
+	kReadRTCTime( &bHour, &bMinute, &bSecond );
+	kReadRTCDate( &wYear, &bMonth, &bDayOfMonth, &bDayOfWeek );
+
+	kPrintf( "Date: %d/%d/%d %s, ", wYear, bMonth, bDayOfMonth,
+			kConvertDayOfWeekToString( bDayOfWeek ) );
+	kPrintf( "Time: %d:%d:%d\n", bHour, bMinute, bSecond );
 }
 
 // TCB 자료구조와 스택 정의
@@ -440,18 +542,18 @@ static QWORD gs_vstStack[ 1024 ] = { 0, };
  */
 void kTestTask( void )
 {
-    int i = 0;
-    
-    while( 1 )
-    {
-        // 메시지를 출력하고 키 입력을 대기
-        kPrintf( "[%d] This message is from kTestTask. Press any key to switch "
-                 "kConsoleShell~!!\n", i++ );
-        kGetCh();
-        
-        // 위에서 키가 입력되면 태스크를 전환
-        kSwitchContext( &( gs_vstTask[ 1 ].stContext ), &( gs_vstTask[ 0 ].stContext ) );
-    }
+	int i = 0;
+
+	while( 1 )
+	{
+		// 메시지를 출력하고 키 입력을 대기
+		kPrintf( "[%d] This message is from kTestTask. Press any key to switch "
+				"kConsoleShell~!!\n", i++ );
+		kGetCh();
+
+		// 위에서 키가 입력되면 태스크를 전환
+		kSwitchContext( &( gs_vstTask[ 1 ].stContext ), &( gs_vstTask[ 0 ].stContext ) );
+	}
 }
 
 /**
@@ -459,24 +561,47 @@ void kTestTask( void )
  */
 void kCreateTestTask( const char* pcParameterBuffer )
 {
-    KEYDATA stData;
-    int i = 0;
-    
-    // 태스크 설정
-    kSetUpTask( &( gs_vstTask[ 1 ] ), 1, 0, ( QWORD ) kTestTask, &( gs_vstStack ), 
-                sizeof( gs_vstStack ) );
-    
-    // 'q' 키가 입력되지 않을 때까지 수행
-    while( 1 )
-    {
-        // 메시지를 출력하고 키 입력을 대기
-        kPrintf( "[%d] This message is from kConsoleShell. Press any key to "
-                 "switch TestTask~!!\n", i++ );
-        if( kGetCh() == 'q' )
-        {
-            break;
-        }
-        // 위에서 키가 입력되면 태스크를 전환
-        kSwitchContext( &( gs_vstTask[ 0 ].stContext ), &( gs_vstTask[ 1 ].stContext ) );
-    }
+	KEYDATA stData;
+	int i = 0;
+
+	// 태스크 설정
+	kSetUpTask( &( gs_vstTask[ 1 ] ), 1, 0, ( QWORD ) kTestTask, &( gs_vstStack ), 
+			sizeof( gs_vstStack ) );
+
+	// 'q' 키가 입력되지 않을 때까지 수행
+	while( 1 )
+	{
+		// 메시지를 출력하고 키 입력을 대기
+		kPrintf( "[%d] This message is from kConsoleShell. Press any key to "
+				"switch TestTask~!!\n", i++ );
+		if( kGetCh() == 'q' )
+		{
+			break;
+		}
+		// 위에서 키가 입력되면 태스크를 전환
+		kSwitchContext( &( gs_vstTask[ 0 ].stContext ), &( gs_vstTask[ 1 ].stContext ) );
+	}
+}
+
+void kMeasureCommandTime( const char* pcParameterBuffer )
+{
+	QWORD startCounter=0;
+	QWORD endCounter=0;
+	WORD counter = 0;
+	WORD hour, min, sec,msec,nsec,micsec;
+	unsigned long ini, end=0;
+
+
+	startCounter = kReadTSC();
+	kExecuteCommand( pcParameterBuffer );
+	endCounter  = kReadTSC();
+	counter = (endCounter - startCounter);
+
+	min = counter / 60000;
+	sec = counter / 10000;
+	msec = (counter % 10000)/10;
+	// kPrintf("measure command time : %d\n",counter);
+	nsec = (counter *100000)% 1000;
+	micsec = (counter * 100 )% 1000;
+	kPrintf("real %d:%d:%d:%d:%d\n",min,sec,msec,micsec,nsec);
 }

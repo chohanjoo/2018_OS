@@ -1,11 +1,3 @@
-/**
- *  file    InterruptHandler.c
- *  date    2009/01/24
- *  author  kkamagui
- *          Copyright(c)2008 All rights reserved by kkamagui
- *  brief   인터럽트 및 예외 핸들러에 관련된 소스 파일
- */
-
 #include "InterruptHandler.h"
 #include "PIC.h"
 #include "Keyboard.h"

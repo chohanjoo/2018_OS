@@ -1,9 +1,3 @@
-# file      Assembly Utility
-# date      2009/01/07
-# author    kkamagui 
-#           Copyright(c)2008 All rights reserved by kkamagui
-# brief     어셈블리어 유틸리티 함수에 관련된 소스 파일
-
 [BITS 64]           ; 이하의 코드는 64비트 코드로 설정
 
 SECTION .text       ; text 섹션(세그먼트)을 정의
@@ -89,7 +83,9 @@ kReadRFLAGS:
 ;   PARAM: 없음    
 kReadTSC:
     push rdx                ; RDX 레지스터를 스택에 저장
-    
+    mov rdx,0
+    mov rax,0
+
     rdtsc                   ; 타임 스탬프 카운터를 읽어서 RDX:RAX에 저장
     
     shl rdx, 32             ; RDX 레지스터에 있는 상위 32비트 TSC 값과 RAX 레지스터에

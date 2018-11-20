@@ -1,11 +1,3 @@
-/**
- *  file    Console.h
- *  date    2009/01/31
- *  author  kkamagui 
- *          Copyright(c)2008 All rights reserved by kkamagui
- *  brief   콘솔에 관련된 헤더 파일
- */
-
 #ifndef __CONSOLE_H__
 #define __CONSOLE_H__
 
@@ -48,7 +40,7 @@
 
 // 콘솔의 너비(Width)와 높이(Height),그리고 비디오 메모리의 시작 어드레스 설정
 #define CONSOLE_WIDTH               80
-#define CONSOLE_HEIGHT              25
+#define CONSOLE_HEIGHT              23
 #define CONSOLE_VIDEOMEMORYADDRESS  0xB8000
 
 // 비디오 컨트롤러의 I/O 포트 어드레스와 레지스터
@@ -56,6 +48,7 @@
 #define VGA_PORT_DATA               0x3D5
 #define VGA_INDEX_UPPERCURSOR       0x0E
 #define VGA_INDEX_LOWERCURSOR       0x0F
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -87,5 +80,7 @@ int kConsolePrintString( const char* pcBuffer );
 void kClearScreen( void );
 BYTE kGetCh( void );
 void kPrintStringXY( int iX, int iY, const char* pcString );
+void kPrintTime(int iX, int iY,const char* pcFormatString, ...);
+void rdtscl(unsigned long long *ll);
 
 #endif /*__CONSOLE_H__*/
